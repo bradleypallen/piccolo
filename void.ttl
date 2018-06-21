@@ -1,4 +1,4 @@
-@prefix abr: <https://wsburroughs.link/anything-but-routine/> .
+@prefix abr: <https://wsburroughs.link/anything-but-routine/4.0/> .
 @prefix abrc: <https://wsburroughs.link/anything-but-routine/4.0/classification/> .
 @prefix abri: <https://wsburroughs.link/anything-but-routine/4.0/instance/> .
 @prefix abrw: <https://wsburroughs.link/anything-but-routine/4.0/work/> .

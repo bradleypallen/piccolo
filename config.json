@@ -20,7 +20,5 @@
         "work",
         "classification"
     ],
-    "dataDump": "dump.ttl",
-    "voidFile": "void.ttl",
     "pageSize": 100
 }
