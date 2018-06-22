@@ -11,8 +11,6 @@
         "xml": "http://www.w3.org/XML/1998/namespace",
         "xsd": "http://www.w3.org/2001/XMLSchema#"
     },
-    "protocol": "https",
-    "domainname": "wsburroughs.link",
     "context": "anything-but-routine",
     "subcontext": "4.0",
     "entitytypes": [
@@ -20,5 +18,5 @@
         "work",
         "classification"
     ],
-    "pageSize": 100
+    "pagesize": 100
 }
