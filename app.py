@@ -6,17 +6,24 @@ from rdflib.namespace import RDF, VOID, XSD
 from rdflib.plugin import register, Serializer
 from itertools import izip_longest
 from uritemplate import URITemplate, expand
+from os.path import isfile
 
 app = Flask(__name__)
 
-rdflib.plugin.register('application/ld+json', Serializer, 'rdflib_jsonld.serializer', 'JsonLDSerializer')
-rdflib.plugin.register('json-ld', Serializer, 'rdflib_jsonld.serializer', 'JsonLDSerializer')
+rdflib.plugin.register('application/ld+json', Serializer,
+    'rdflib_jsonld.serializer', 'JsonLDSerializer')
+rdflib.plugin.register('json-ld', Serializer,
+    'rdflib_jsonld.serializer', 'JsonLDSerializer')
 
 CONFIG = json.load(open('config.json', 'r'))
-DATASET_RELATIVE_URI = URITemplate("{/context,subcontext}/").expand(context=CONFIG['context'], subcontext=CONFIG['subcontext'])
-WELL_KNOWN_VOID_RELATIVE_URI = URITemplate("{/context,subcontext}/.well-known/void").expand(context=CONFIG['context'], subcontext=CONFIG['subcontext'])
-RESOURCE_RELATIVE_URI = URITemplate("{/context,subcontext}/<path:resource>").expand(context=CONFIG['context'], subcontext=CONFIG['subcontext'])
-TPF_RELATIVE_URI = URITemplate("{/context,subcontext}/fragment{?s,p,o,page}").expand(context=CONFIG['context'], subcontext=CONFIG['subcontext'])
+DATASET_RELATIVE_URI = URITemplate("{/context,subcontext}/").expand(
+    context=CONFIG['context'], subcontext=CONFIG['subcontext'])
+WELL_KNOWN_VOID_RELATIVE_URI = URITemplate("{/context,subcontext}/.well-known/void").expand(
+    context=CONFIG['context'], subcontext=CONFIG['subcontext'])
+RESOURCE_RELATIVE_URI = URITemplate("{/context,subcontext}/<path:resource>").expand(
+    context=CONFIG['context'], subcontext=CONFIG['subcontext'])
+TPF_RELATIVE_URI = URITemplate("{/context,subcontext}/fragment{?s,p,o,page}").expand(
+    context=CONFIG['context'], subcontext=CONFIG['subcontext'])
 HYDRA = rdflib.Namespace("http://www.w3.org/ns/hydra/core#")
 VOID_GRAPH = Graph().parse('void.ttl', format="n3")
 DATASET_GRAPH = Graph()
@@ -82,15 +89,18 @@ def tpf_data(s, p, o, page):
 
 def tpf_metadata(n_triples):
     metadata = Graph()
-    metadata.add( (URIRef(request.url), VOID.triples, Literal(n_triples, datatype=XSD.integer)) )
+    fragment = URIRef(request.url)
+    metadata.add( (fragment, VOID.triples, Literal(n_triples, datatype=XSD.integer)) )
     return metadata
 
 def tpf_controls(data, n_triples, page):
     controls = Graph()
     page_size = CONFIG['pagesize']
     max_page_no = math.ceil(n_triples / page_size)
-    controls.add( (URIRef(request.url_root), VOID.subset, URIRef(request.url)) )
-    controls.add( (URIRef(request.url_root), HYDRA.template, Literal(TPF_RELATIVE_URI+"{?s,p,o}")) )
+    dataset = URIRef(request.url_root)
+    fragment = URIRef(request.url)
+    controls.add( (dataset, VOID.subset, URIRef(request.url)) )
+    controls.add( (dataset, HYDRA.template, Literal(TPF_RELATIVE_URI+"{?s,p,o}")) )
     s_var = BNode()
     controls.add( (s_var, HYDRA.variable, Literal("s")) )
     controls.add( (s_var, HYDRA.property, RDF.subject) )
@@ -100,42 +110,47 @@ def tpf_controls(data, n_triples, page):
     o_var = BNode()
     controls.add( (o_var, HYDRA.variable, Literal("o")) )
     controls.add( (o_var, HYDRA.property, RDF.object) )
-    controls.add( (URIRef(request.url_root), HYDRA.mapping, s_var) )
-    controls.add( (URIRef(request.url_root), HYDRA.mapping, p_var) )
-    controls.add( (URIRef(request.url_root), HYDRA.mapping, o_var) )
-    controls.add( (URIRef(request.url), RDF.type, HYDRA.Collection) )
-    controls.add( (URIRef(request.url), RDF.type, HYDRA.PagedCollection) )
-    controls.add( (URIRef(request.url), HYDRA.totalItems, Literal(n_triples, datatype=XSD.integer)) )
-    controls.add( (URIRef(request.url), HYDRA.itemsPerPage, Literal(page_size, datatype=XSD.integer)) )
+    controls.add( (dataset, HYDRA.mapping, s_var) )
+    controls.add( (dataset, HYDRA.mapping, p_var) )
+    controls.add( (dataset, HYDRA.mapping, o_var) )
+    controls.add( (fragment, RDF.type, HYDRA.Collection) )
+    controls.add( (fragment, RDF.type, HYDRA.PagedCollection) )
+    controls.add( (fragment, HYDRA.totalItems, Literal(n_triples, datatype=XSD.integer)) )
+    controls.add( (fragment, HYDRA.itemsPerPage, Literal(page_size, datatype=XSD.integer)) )
     if page >= 1:
-        controls.add( (URIRef(request.url), HYDRA.firstPage, Literal(0, datatype=XSD.integer)) )
+        controls.add( (fragment, HYDRA.firstPage, Literal(0, datatype=XSD.integer)) )
     if page > 1:
-        controls.add( (URIRef(request.url), HYDRA.previousPage, Literal(page - 1, datatype=XSD.integer)) )
+        controls.add( (fragment, HYDRA.previousPage, Literal(page - 1, datatype=XSD.integer)) )
     if page < max_page_no:
-        controls.add( (URIRef(request.url), HYDRA.nextPage, Literal(page + 1, datatype=XSD.integer)) )
+        controls.add( (fragment, HYDRA.nextPage, Literal(page + 1, datatype=XSD.integer)) )
     return controls
 
 @app.route(DATASET_RELATIVE_URI)
-@provides('text/html', 'text/turtle', 'application/rdf+xml', 'text/plain', 'application/x-turtle', 'text/rdf+n3', 'application/ld+json', to='media_type')
+@provides('text/html', 'text/turtle', 'application/rdf+xml', 'text/plain',
+    'application/x-turtle', 'text/rdf+n3', 'application/ld+json', to='media_type')
 def get_root(media_type):
     return accepted_graph_serialization(VOID_GRAPH, media_type)
 
 @app.route(WELL_KNOWN_VOID_RELATIVE_URI)
-@provides('text/html', 'text/turtle', 'application/rdf+xml', 'text/plain', 'application/x-turtle', 'text/rdf+n3', 'application/ld+json', to='media_type')
+@provides('text/html', 'text/turtle', 'application/rdf+xml', 'text/plain',
+    'application/x-turtle', 'text/rdf+n3', 'application/ld+json', to='media_type')
 def get_well_known_void(media_type):
     return accepted_graph_serialization(VOID_GRAPH, media_type)
 
 @app.route(RESOURCE_RELATIVE_URI)
-@provides('text/html', 'text/turtle', 'application/rdf+xml', 'text/plain', 'application/x-turtle', 'text/rdf+n3', 'application/ld+json', to='media_type')
+@provides('text/html', 'text/turtle', 'application/rdf+xml', 'text/plain',
+    'application/x-turtle', 'text/rdf+n3', 'application/ld+json', to='media_type')
 def get_resource(resource, media_type):
-    try:
-        graph = Graph().parse('.{}{}.ttl'.format(request.script_root, request.path), format='n3')
-    except IOError as e:
+    ld_document_file = '.{}{}.ttl'.format(request.script_root, request.path)
+    if isfile(ld_document_file):
+        graph = Graph().parse(ld_document_file, format='n3')
+    else:
         abort(404)
     return accepted_graph_serialization(graph, media_type)
 
 @app.route(TPF_RELATIVE_URI)
-@provides('text/html', 'text/turtle', 'application/rdf+xml', 'text/plain', 'application/x-turtle', 'text/rdf+n3', 'application/ld+json', to='media_type')
+@provides('text/html', 'text/turtle', 'application/rdf+xml', 'text/plain',
+    'application/x-turtle', 'text/rdf+n3', 'application/ld+json', to='media_type')
 def get_tpf(media_type):
     (s, p, o, page) = tpf_params()
     (data, n_triples) = tpf_data(s, p, o, page)
