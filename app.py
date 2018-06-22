@@ -21,7 +21,8 @@ rdflib.plugin.register('json-ld', Serializer,
 CONFIG = json.load(open('config.json', 'r'))
 
 # With the context and subcontext (optional) names specified in config.json,
-# use URI templates to define the relative URIs that the Flask app will handle
+# use URI templates to define the relative URIs for which the Flask app will
+# handle requests
 DATASET_RELATIVE_URI = URITemplate("{/context,subcontext}/").expand(
     context=CONFIG['context'], subcontext=CONFIG['subcontext'])
 WELL_KNOWN_VOID_RELATIVE_URI = URITemplate("{/context,subcontext}/.well-known/void").expand(
